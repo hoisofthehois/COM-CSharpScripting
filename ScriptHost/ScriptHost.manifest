@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity
+		name="ScriptHost"
+		processorArchitecture="amd64"
+		version="1.0.0.0"
+	/>
+  <clrClass
+		clsid="{C8F31783-11F1-4177-B9DB-6899CA531DBA}"
+		name="csharpscripting.ScriptRunner"
+		progid="CSharpScripting.ScriptRunner"
+		runtimeVersion="v4.0.30319"
+		threadingModel="Both"
+	>
+  </clrClass>
+  <clrClass
+    clsid="{CFCB3B8E-8462-4FD7-AB27-04EBC255F9E7}"
+		name="csharpscripting.ScriptParams"
+		progid="CSharpScripting.ScriptParams"
+		runtimeVersion="v4.0.30319"
+		threadingModel="Both"
+  ></clrClass>
+  <file name="ScriptHost.dll">
+  </file>
+</assembly>
