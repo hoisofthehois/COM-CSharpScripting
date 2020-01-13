@@ -4,7 +4,7 @@
 
 Many developers who work on legacy applications, written in C++ for instance, wish to extend the capabilities of their project in a quick and simple way. Scripting is a feature that serves that purpose, and thus the possibility to load and run scripts has been implemented in various programs.
 
-The most populare programming language for scripting seems to be Python at the moment, due to its huge ecosystem of libraries and its popularity in the field of AI. However, writing scripts in a more sophisticated language - i.e. C# - has many advantages:
+The most popular programming language for scripting seems to be Python at the moment, due to its huge ecosystem of libraries and its popularity in the field of AI. However, writing scripts in a more sophisticated language - that is, C# - has many advantages:
 
 - The scripts can be compiled upon loading, resulting in optimized code and faster execution speed.
 - C# is quite well known among desktop and legacy developers, who are the target audience here.
@@ -12,6 +12,8 @@ The most populare programming language for scripting seems to be Python at the m
 - C#, targeting the .NET Framework, does not need any additional rumtime, as .NET comes with Windows in general.
 
 Especially the last item may be important when it comes to using any scripting features in an actual production environment.
+
+This repository provides a working example of how a scripting feature for C# (or any .NET language) can be implemented and made available to C++. It consists of a library *ScriptHost*, written in C#, that implements the actual script compilation and execution, a test script that applies a simple image processing operation to a Bitmap, and a C++ application running that script using the *ScriptHost* library.
 
 ## Implementation (details) of this project
 
