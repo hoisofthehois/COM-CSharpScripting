@@ -9,11 +9,12 @@ The most popular programming language for scripting seems to be Python at the mo
 - The scripts can be compiled upon loading, resulting in optimized code and faster execution speed.
 - C# is quite well known among desktop and legacy developers, who are the target audience here.
 - The amount of libraries and tools available for .NET is (almost) as big as for Python.
+- In Windows, there is rich interop possibilities in between .NET and C/C++ (e.g. P/Invoke, user-defined marshalling etc.).
 - C#, targeting the .NET Framework, does not need any additional rumtime, as .NET comes with Windows in general.
 
-Especially the last item may be important when it comes to using any scripting features in an actual production environment.
+Especially the last item may be crucial when it comes to deploying a scripting feature in an actual production environment.
 
-This repository provides a working example of how a scripting feature for C# (or any .NET language) can be implemented and made available to C++. It consists of a library *ScriptHost*, written in C#, that implements the actual script compilation and execution, a test script that applies a simple image processing operation to a Bitmap, and a C++ application running that script using the *ScriptHost* library.
+This repository provides a working example of how scripting for C# (or any .NET language) can be implemented and made available to C++. It consists of a library *ScriptHost* that implements the actual script compilation and execution, a test script that applies a simple image processing operation to a `Bitmap`, and a C++ application running that script using the *ScriptHost* library.
 
 ## Implementation (details) of this project
 
@@ -135,5 +136,22 @@ namespace TestScript
 
 ### The "legacy" client
 
-## Open issues
+---
 
+## Current issues
+
+## Next steps
+
+- [ ] `Microsoft.CSharp.CSharpCodeProvider` supports C# 5 only. In order to compile scripts written in a more recent language version, the *.NET Compiler Platform* / [*Roslyn*](https://github.com/dotnet/roslyn) should be used.
+- [ ] Although passing BLOB-style objects like `Bitmap`s into and out of the script can be sufficient in certain areas, being with composed objects (collections, trees etc.) would be an even more handy feature. If these types were exposed to COM, it may be possible to use them in .NET, and thus within the script.
+
+## References
+
+- **C# COM server and client example**: https://stackoverflow.com/q/19874230/2380654
+- **How to: Configure .NET Framework-Based COM Components for Registration-Free Activation**: https://docs.microsoft.com/en-us/dotnet/framework/interop/configure-net-framework-based-com-components-for-reg
+- **#import directive (C++)**: https://docs.microsoft.com/en-us/cpp/preprocessor/hash-import-directive-cpp?view=vs-2019
+- **How to: Reference .NET Types from COM**: https://docs.microsoft.com/en-us/dotnet/framework/interop/how-to-reference-net-types-from-com
+- **A quick guide to Registration-Free COM in .Net–and how to Unit Test it**: http://blog.functionalfun.net/2012/09/a-quick-guide-to-registration-free-com.html
+- **IErrorInfo interface**: https://docs.microsoft.com/en-us/windows/win32/api/oaidl/nn-oaidl-ierrorinfo
+- **\_com_error Class**: https://docs.microsoft.com/en-us/cpp/cpp/com-error-class?view=vs-2019
+- **Image processing** (Accord.Net): https://github.com/accord-net/framework/wiki/Imaging
