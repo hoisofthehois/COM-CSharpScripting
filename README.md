@@ -18,7 +18,42 @@ This repository provides a working example of how scripting for C# (or any .NET 
 
 ## Implementation (details) of this project
 
+The scripting example consists of three projects, as mentioned above: The *ScriptHost*, the client, and the actual script. Host and client collaborate in order to load and compile the script file, resolve any dependencies to other assemblies that the script may have, passing parameters to the script, executing it and retrieving the results.
+
+In the following, each of these steps is described in detail.
+
 ### Loading and compiling a C# script
+
+The most important functionality of C# scripting is to load and compile a user-specified file containing C# code. A lot of examples can be found of how to accomplish that task. A common approach, which is also implemented here, is to use the built-in compilation tools from .NET, that is `Microsoft.CSharp.CSharpCodeProvider` ([docs](https://docs.microsoft.com/en-us/dotnet/api/microsoft.csharp.csharpcodeprovider?view=netframework-4.6.2)) along with `System.CodeDom.Compiler.CompilerParameters` ([docs](https://docs.microsoft.com/en-us/dotnet/api/system.codedom.compiler.compilerparameters?view=netframework-4.6.2)).
+
+The following piece of code will compile a script, specified as a `String`, into an assembly:
+```csharp
+Assembly compiledAssembly = null;
+using (var provider = new CSharpCodeProvider())
+{
+  var parameters = new CompilerParameters
+  {
+    GenerateExecutable = false,
+    GenerateInMemory = true,
+    CompilerOptions = "/optimize /langversion:5"
+  };
+  var compilerResults = provider.CompileAssemblyFromSource(parameters, script);
+  if (compilerResults.Errors.HasErrors)
+    throw new Exception(compilerResults.Errors.Cast<CompilerError>().First().ErrorText);
+  compiledAssembly = compilerResults.CompiledAssembly;
+}
+```
+The script must contain valid code that is actually compilable, i.e. classes or structs, no free functions, all necessary `using namespace` declarations etc. As for resolving dependencies to other assemblies, see below.
+
+If the compilation is not successful, the resulting `CompilerResults` object will contain a non-empty `CompilerErrorCollection`. For simplicity, the first error that occured is thrown as an `Exception` here. If it is sucessful, the compiled assembly can be investigated using reflection:
+```csharp
+var mainMethod = scriptAssembly
+  .DefinedTypes
+  .SelectMany(type => type.GetMethods())
+  .FirstOrDefault(method => method.Name == entryFunction);
+var mainObject = this.mainMethod?.DeclaringType?.CreateInstance();
+```
+Here, `entryFunction` is the name of a member function that will be called later to run the script; the `mainObject` is an instance of the class in which that function is declared. `CreateInstance` is just an extension method that wraps `Activator.CreateInstance` which was written in order to be able to use the null-conditional call syntax.
 
 ### Managing script dependencies
 
@@ -142,11 +177,14 @@ namespace TestScript
 
 ## Next steps
 
+- [ ] Error handling during script compilation should be improved; instead of a generic exception, a dedicated class with appropriate `HRESULT` (that is, deriving from `COMError`), could be implemented.
 - [ ] `Microsoft.CSharp.CSharpCodeProvider` supports C# 5 only. In order to compile scripts written in a more recent language version, the *.NET Compiler Platform* / [*Roslyn*](https://github.com/dotnet/roslyn) should be used.
 - [ ] Although passing BLOB-style objects like `Bitmap`s into and out of the script can be sufficient in certain areas, being with composed objects (collections, trees etc.) would be an even more handy feature. If these types were exposed to COM, it may be possible to use them in .NET, and thus within the script.
 
 ## References
 
+- **CSharpCodeProvider Class**: https://docs.microsoft.com/en-us/dotnet/api/microsoft.csharp.csharpcodeprovider?view=netframework-4.6.2
+- **CompilerParameters Class**: https://docs.microsoft.com/en-us/dotnet/api/system.codedom.compiler.compilerparameters?view=netframework-4.6.2
 - **C# COM server and client example**: https://stackoverflow.com/q/19874230/2380654
 - **How to: Configure .NET Framework-Based COM Components for Registration-Free Activation**: https://docs.microsoft.com/en-us/dotnet/framework/interop/configure-net-framework-based-com-components-for-reg
 - **#import directive (C++)**: https://docs.microsoft.com/en-us/cpp/preprocessor/hash-import-directive-cpp?view=vs-2019
