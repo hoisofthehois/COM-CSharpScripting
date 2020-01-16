@@ -57,6 +57,49 @@ Here, `entryFunction` is the name of a member function that will be called later
 
 ### Managing script dependencies
 
+For the compilation of the script assembly, it may often be necessary to reference other assemblies, for example if the script uses thrid-party libraries. These assemblies can either be found in the GAC - the *Global Assembly Cache* - or be placed in the directory of the script file. Nevertheless, there must be a way to specify these dependencies before compilation. 
+
+Here, that specification can be written directly to the script file using a dedicated comment format, e.g. `// #require "System.Drawing.dll"`, which would state that this reference should be added. When reading the script before compilation, comments like this are found using regular expressions:
+```csharp
+var dependencies = new List<String>();
+while (!file.EndOfStream)
+{
+  var line = file.ReadLine();
+  var match = Regex.Match(line, "\\/\\/\\s*#require\\s*\"(?<dep>[\\w.]*)\"");        
+  if (match.Success && match.Groups["dep"].Success)
+  {
+    var dep = match.Groups["dep"].Value;
+    var dllFilename = dep.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase) ? dep : dep + ".dll";
+    var localDllFilename = Path.Combine(this.scriptDirectory, dllFilename);
+    dependencies.Add(File.Exists(localDllFilename) ? localDllFilename : dllFilename);
+  }
+}
+```
+A ".dll" extension is appended to the specified dependency as needed. Depending on whether the required DLL could be found in the script's directory, the reference is listed with its full path or just its filename (assuming it can be found in the GAC).
+
+For compilation, the references must be added to the `CompilerParameters.ReferencedAssemblies` collection: `parameters.ReferencedAssemblies.AddRange(dependencies.ToArray())`.
+
+It is however not enough to specify the script's dependencies before compilation, since when actually executing code from the script, the assemblies that the code relies on must be loaded. Assemblies from the GAC are loaded automatically, but those dependencies that reside in the script directory cannot be resolved. In order to load them, a handler for the `AppDomain.AssemblyResolve` ([doc](https://docs.microsoft.com/en-us/dotnet/api/system.appdomain.assemblyresolve?view=netframework-4.6.2)) event must be registered:
+```csharp
+public ScriptRunner()
+{
+  AppDomain.CurrentDomain.AssemblyResolve += this.OnAssemblyResolve;
+}
+
+private Assembly OnAssemblyResolve(Object sender, ResolveEventArgs args)
+{
+  if (!String.IsNullOrEmpty(this.scriptDirectory))
+  {
+    var assemblyName = new AssemblyName(args.Name);
+    var dllPath = Path.Combine(this.scriptDirectory, assemblyName.Name + ".dll");
+    if (File.Exists(dllPath))
+      return Assembly.LoadFrom(dllPath);
+  }
+  return null;
+}
+```
+That handler will be fired whenever an assenbly is required but cannot be found. It searches the corresponding DLL in the script directory and loads it accordingly.
+
 ### Parameter input and output
 
 ### Exposing the C# script host to C++
@@ -185,6 +228,7 @@ namespace TestScript
 
 - **CSharpCodeProvider Class**: https://docs.microsoft.com/en-us/dotnet/api/microsoft.csharp.csharpcodeprovider?view=netframework-4.6.2
 - **CompilerParameters Class**: https://docs.microsoft.com/en-us/dotnet/api/system.codedom.compiler.compilerparameters?view=netframework-4.6.2
+- **AppDomain.AssemblyResolve Event**: https://docs.microsoft.com/en-us/dotnet/api/system.appdomain.assemblyresolve?view=netframework-4.6.2
 - **C# COM server and client example**: https://stackoverflow.com/q/19874230/2380654
 - **How to: Configure .NET Framework-Based COM Components for Registration-Free Activation**: https://docs.microsoft.com/en-us/dotnet/framework/interop/configure-net-framework-based-com-components-for-reg
 - **#import directive (C++)**: https://docs.microsoft.com/en-us/cpp/preprocessor/hash-import-directive-cpp?view=vs-2019
