@@ -126,7 +126,9 @@ void setProperty<T>(KeyValuePair<String, T> par)
   }
 }
 ```
-The same thing happens when retrieving results from the script; in that case, it is sufficient to call the `ToString()` method that every .NET type has.
+The same thing happens when retrieving results from the script; in that case, it is sufficient to call the `ToString()` method that every .NET type has. Result value are read from those properties of the `mainObject` that have a public getter but a private setter, and become available under a key that is the name of the respective property.
+
+Apart from basic types, `Bitmap`s can be specified as parameters using the `IScriptParams.SetImage` method. The images are created using the specified pixel data passed as an `IntPtr` ([doc](https://docs.microsoft.com/en-us/dotnet/api/system.drawing.bitmap.-ctor?view=netframework-4.6.2#System_Drawing_Bitmap__ctor_System_Int32_System_Int32_System_Int32_System_Drawing_Imaging_PixelFormat_System_IntPtr_)), and stored in a separate dictionary. As the pixels values can be modified within the script (e.g. after Bitmap.LockBits or using GDI+), images effectively become in/out parameters.
 
 ### Exposing the C# script host to C++
 
@@ -247,6 +249,7 @@ namespace TestScript
 ## Next steps
 
 - [ ] Error handling during script compilation should be improved; instead of a generic exception, a dedicated class with appropriate `HRESULT` (that is, deriving from `COMError`), could be implemented.
+- [ ] The `mainObject` should be passed to the specified `ScriptParams`, so that not all output parameters need to be read and cached, but only the ones being queried by `IScriptParams.GetResult`.
 - [ ] `Microsoft.CSharp.CSharpCodeProvider` supports C# 5 only. In order to compile scripts written in a more recent language version, the *.NET Compiler Platform* / [*Roslyn*](https://github.com/dotnet/roslyn) should be used.
 - [ ] Although passing BLOB-style objects like `Bitmap`s into and out of the script can be sufficient in certain areas, being with composed objects (collections, trees etc.) would be an even more handy feature. If these types were exposed to COM, it may be possible to use them in .NET, and thus within the script.
 
@@ -256,6 +259,7 @@ namespace TestScript
 - **CompilerParameters Class**: https://docs.microsoft.com/en-us/dotnet/api/system.codedom.compiler.compilerparameters?view=netframework-4.6.2
 - **AppDomain.AssemblyResolve Event**: https://docs.microsoft.com/en-us/dotnet/api/system.appdomain.assemblyresolve?view=netframework-4.6.2
 - **How to add folder to assembly search path at runtime in .NET?**: https://stackoverflow.com/a/1373295/2380654 (answer)
+- **Bitmap Constructors**: https://docs.microsoft.com/en-us/dotnet/api/system.drawing.bitmap.-ctor?view=netframework-4.6.2
 - **C# COM server and client example**: https://stackoverflow.com/q/19874230/2380654
 - **Marshalling .NET generic types**: https://stackoverflow.com/a/1579760/2380654 (answer)
 - **How to: Configure .NET Framework-Based COM Components for Registration-Free Activation**: https://docs.microsoft.com/en-us/dotnet/framework/interop/configure-net-framework-based-com-components-for-reg
