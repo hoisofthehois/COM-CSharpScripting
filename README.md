@@ -102,6 +102,32 @@ That handler will be fired whenever an assenbly is required but cannot be found.
 
 ### Parameter input and output
 
+In order to accomplish any serious task using a script, it is necessary to be able to pass parameters to the script and to retrieve results afterwards. For that, the class `ScriptParams` can be used, that implements the `IScriptParams` interface using which the script user can set and get values:
+```csharp
+public interface IScriptParams
+{
+  void SetImage(String key, int width, int height, int stride, IntPtr data);
+  void SetParam(String key, String value);
+  String GetResult(String key);
+}
+```
+Simple inputs and outputs are treated as `String`s, since virtually all 'simple' types can be converted from and to a string, e.g. integers, floats, `DateTime`s (using appropriate culture settings) etc. As the `IScriptParams` interface is intended to be used from C++, a generic approach (like `SetParam<T>(String key, T value) where T : struct`) is not feasable (see [that SO answer](https://stackoverflow.com/a/1579760/2380654)). Internally, the parameters are stored in `Dictionary<String, String>`s using the specified `key`s.
+
+As the parameters may represent values that are not necessarily `String`s, conversions must be done. These conversions need not happen in the script itself. Before the call into the script is done using reflection, the properties of the already created `mainObject` (see above) can be filled using reflection, too. Those properties can accept arbitrary types; using `Convert.ChangeType` the type conversion is done before setting the value:
+```csharp
+void setProperty<T>(KeyValuePair<String, T> par)
+{
+  var paramProperty = this.mainType.GetProperty(par.Key);
+  if (paramProperty?.SetMethod != null)
+  {
+    var targetType = paramProperty.PropertyType;
+    var value = Convert.ChangeType(par.Value, targetType);
+    paramProperty.SetValue(this.mainObject, value);
+  }
+}
+```
+The same thing happens when retrieving results from the script; in that case, it is sufficient to call the `ToString()` method that every .NET type has.
+
 ### Exposing the C# script host to C++
 
 ## Example from image processing
@@ -229,7 +255,9 @@ namespace TestScript
 - **CSharpCodeProvider Class**: https://docs.microsoft.com/en-us/dotnet/api/microsoft.csharp.csharpcodeprovider?view=netframework-4.6.2
 - **CompilerParameters Class**: https://docs.microsoft.com/en-us/dotnet/api/system.codedom.compiler.compilerparameters?view=netframework-4.6.2
 - **AppDomain.AssemblyResolve Event**: https://docs.microsoft.com/en-us/dotnet/api/system.appdomain.assemblyresolve?view=netframework-4.6.2
+- **How to add folder to assembly search path at runtime in .NET?**: https://stackoverflow.com/a/1373295/2380654 (answer)
 - **C# COM server and client example**: https://stackoverflow.com/q/19874230/2380654
+- **Marshalling .NET generic types**: https://stackoverflow.com/a/1579760/2380654 (answer)
 - **How to: Configure .NET Framework-Based COM Components for Registration-Free Activation**: https://docs.microsoft.com/en-us/dotnet/framework/interop/configure-net-framework-based-com-components-for-reg
 - **#import directive (C++)**: https://docs.microsoft.com/en-us/cpp/preprocessor/hash-import-directive-cpp?view=vs-2019
 - **How to: Reference .NET Types from COM**: https://docs.microsoft.com/en-us/dotnet/framework/interop/how-to-reference-net-types-from-com
