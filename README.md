@@ -132,6 +132,36 @@ Apart from basic types, `Bitmap`s can be specified as parameters using the `IScr
 
 ### Exposing the C# script host to C++
 
+So far, implementing the scripting feature has been straightforward, even though less frequently used .NET functionalities like reflection and runtime code compilation have been utilized. The most challanging task, however, may be to expose the C# based script host to a legacy application in C++.
+
+Unlike some other languages, C# does not offer C bindings, that is, there is no way to export the methods defined in the *ScripHost* assembly as a C-style interface. Instead, several other ways are possible. Of course, a solution would be to set up a webservice offering the required functionality - but it would need to be hosted somehow, and a client implementation would have to be provided in the legacy application, too.
+
+Next, there is C++/CLI, which is C++ targeting the .NET platform. That dialect is described in detail in Nishant Sivakumar's book "[C++/CLI In Action](https://www.manning.com/books/c-plus-plus-cli-in-action)". Although using C++/CLI may be to most elegant way to interop, in this project another technology is applied: COM, the *Component Object Model*.
+
+COM is an ancient way to enable language-independent communication in Windows; it is based on a client-server architecture, where the server may be either "Out-Proc", that is, a standalone executable, or "In-Proc", i.e. a DLL. COM is a very fundamental component of Windows and has been supported in each version since Windows 3.1. Accordingly, COM servers and clients can be written naturally in C# as well.
+
+In order to make the *ScriptHost* assembly a COM server, both classes, `ScriptRunner` and `ScriptParams`, must be implementations of the corresponding interfaces `ISciptRunner` and `IScriptParams`, respectively. These interfaces are each made visible to COM and get a unique identifier, a GUID:
+```csharp
+[ComVisible(true)]
+[Guid("9845390E-A748-4E84-8775-AE226C3729F0")]
+[InterfaceType(ComInterfaceType.InterfaceIsDual)]
+public interface IScriptRunner
+{
+  void LoadScript(String filename, String entryFunction);
+  bool Initialized();
+  void Execute(IScriptParams scriptParams);
+}
+```
+The concrete classes are also made COM-visible and get GUID identifiers (which are called *ClassID*s); they also get symbolic names, so-called *ProgID*s:
+```csharp
+[ComVisible(true)]
+[ProgId("CSharpScripting.ScriptRunner")]
+[Guid("C8F31783-11F1-4177-B9DB-6899CA531DBA")]
+[ClassInterface(ClassInterfaceType.None)]
+public class ScriptRunner : IScriptRunner { ... }
+```
+Declaring both interface and class is necessary in COM as in principle the interface definition could come from an external source (e.g. in form of an IDL file), so that just the interface implementation, a so-called *Co-Class*, must be defined in the assembly. 
+
 ## Example from image processing
 
 ### The C# script
@@ -241,6 +271,65 @@ namespace TestScript
 ```
 
 ### The "legacy" client
+
+```cpp
+#include <windows.h>
+#include <atlbase.h>
+#include <comdef.h>
+
+#include <iostream>
+#include <string>
+
+#define cimg_display 0
+#include "CImg.h"
+
+#import "ScriptHost.tlb" raw_interfaces_only  
+
+using ScriptHost::IScriptRunner;
+using ScriptHost::ScriptRunner;
+using ScriptHost::IScriptParams;
+using ScriptHost::ScriptParams;
+
+int main(int argc, char** argv)
+{
+  COMInit com;
+  try
+  {
+    CComPtr<IScriptRunner> cpPluginHost{};
+    auto clsidPluginHost = __uuidof(ScriptRunner);
+    CheckedHRESULT hr{ cpPluginHost.CoCreateInstance(clsidPluginHost, NULL, CLSCTX_ALL) };
+
+    hr = cpPluginHost->LoadScript("../Script.cs"_bstr, "RunScript"_bstr);
+
+    CComPtr<IScriptParams> cpScriptParams{};
+    auto clsidScriptParams = __uuidof(ScriptParams);
+    hr = cpScriptParams.CoCreateInstance(clsidScriptParams, NULL, CLSCTX_ALL);
+
+    cpScriptParams->SetParam("OutDir"_bstr, "./"_bstr);
+    cpScriptParams->SetParam("FilterSize"_bstr, "21"_bstr);
+
+    cimg_library::CImg<unsigned char> imgBird{ "Bird.bmp" };
+    auto image = imgBird.get_shared_channel(0U);
+    hr = cpScriptParams->SetImage("WorkImage"_bstr, image.width(), image.height(), image.width(), (long long)image.begin());
+
+    hr = cpPluginHost->Execute(cpScriptParams);
+
+    _bstr_t bstrElapsed;
+    hr = cpScriptParams->GetResult("Elapsed"_bstr, bstrElapsed.GetAddress());
+
+    std::cout << "Raw script execution took " << bstrElapsed << " seconds." << std::endl;
+
+    image.save_bmp("Processed.bmp");
+
+    return 0;
+  }
+  catch (_com_error& exc)
+  {
+    std::cout << exc.ErrorMessage() << " (" << exc.Description() << ")" << std::endl;
+    return exc.Error();
+  }
+}
+```
 
 ---
 
